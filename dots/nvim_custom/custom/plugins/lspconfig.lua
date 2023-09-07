@@ -23,3 +23,9 @@ lspconfig.cssls.setup {
     filetypes = {"php", "html", "scss", "css"}
 }
 
+lspconfig.json.setup {
+    on_attach = on_attach,
+    capabilities = capabilities,
+    filetypes = {"json"}
+}
+

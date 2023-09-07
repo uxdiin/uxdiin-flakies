@@ -1,33 +1,20 @@
 { config, pkgs, inputs, lib, system ? builtins.currentSystem, ... }:
 let
-    stable = import (builtins.fetchTarball {
-        url = "https://nixos.org/channels/nixos-23.05";
-        sha256 = "sha256:0znb7n2l7p1hd9mvwm4f5zmwzv1hq2q3cbsnsdscphivgdwh43ns";
-    }) {
-            inherit system pkgs;
-        };
-    system = "x86_64-linux"; 
 in
 {
     home.username = "uxdiin";
     home.homeDirectory = "/home/uxdiin";
     home.stateVersion = "23.05";
     nixpkgs.config = {
-        # packageOverrides = pkgs: {
-        #     inherit (import <nixpkgs> {
-        #         config = { 
-        #             allowUnfree = true; 
-	  	    # 	    allowUnfreePredicate = (_: true);
-        #         };
-        #     });
-        # unstable = import <nixpkgs> { config.allowUnfree = true; };
-	  	# config = {
-	  		allowUnfree = true;
-	  		allowUnfreePredicate = (_: true);
-	  	# };
-	  # };
+	  	allowUnfree = true;
+	  	allowUnfreePredicate = (_: true);
+        permittedInsecurePackages = [
+            "electron-14.2.9"
+        ];
     };
+    
 
+    
     nixpkgs.overlays = [
         (self: super: {
             waybar = super.waybar.overrideAttrs (oldAttrs: {
@@ -48,7 +35,7 @@ in
         firefox
         eww-wayland
         htop
-        stable.brave
+        brave
         tdesktop
         neovide
         rocketchat-desktop
@@ -67,13 +54,16 @@ in
         feh
         rofi
         cliphist
+        haskellPackages.greenclip
         virt-manager
         # qemu_full
         # qemu-utils
         qemu
         qemu_kvm
+        # python310Packages.pillow
         python311Packages.libvirt
-        python3Full
+        # python3Full
+        (python3.withPackages(ps: with ps; [ selenium pillow pandas openpyxl requests]))
         steam-run
         mpvpaper
         mpv
@@ -89,10 +79,23 @@ in
         outils
         zip
         unzip
+        ark
+        python3Packages.selenium
+        stable.discord
+        emscripten
+        gcc
+        geogebra6
+        chromium
+        atlauncher
 	  ];
+    
+   xdg.enable = true;
 
-    xdg.configFile."kitty".source = ../dots/kitty;
-    xdg.configFile."nvim".source = ../dots/nvim;
+    xdg.configFile."nvim".source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/flakies/dots/nvim";
+    xdg.configFile."bspwm".source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/flakies/dots/bspwm";
+    xdg.configFile."sxhkd".source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/flakies/dots/sxhkd";
+
+    home.file.".config/kitty".source = ../dots/kitty;
     xdg.configFile."waybar".source = ../dots/waybar;
 
     programs.neovim = {
@@ -117,6 +120,14 @@ in
 	  enable = true;
 	  plugins = ["git" "python" "docker" "fzf"];
 	};    
-
+    xdg.mimeApps = {
+      enable = true;
+      associations.added = {
+        "application/json" = ["nvim"];
+      };
+      defaultApplications = {
+        "application/json" = ["nvim"];
+      };
+    };
 
 }

@@ -7,38 +7,63 @@
 let
     extraHostsFile = ../dots/hosfile/hosts;
     extraHosts = builtins.readFile extraHostsFile;
-    stable = import (builtins.fetchTarball {
-        url = "https://nixos.org/channels/nixos-23.05";
-        sha256 = "sha256:0znb7n2l7p1hd9mvwm4f5zmwzv1hq2q3cbsnsdscphivgdwh43ns";
-    }) {
-            inherit system pkgs;
-        };
-    system = "x86_64-linux"; 
-
+    picom-animation = pkgs.callPackage ./git-packages/picom.nix { };
 in {
-    services.xserver.videoDrivers = [ "nvidia" ];
-    hardware.opengl.enable = true;
+    boot.kernelPackages = pkgs.linuxPackages_xanmod_stable;
+
+    services.xserver.videoDrivers = [ "nvidia" "intel" ];
+    hardware.bluetooth.enable = true;
+    hardware.opengl = {
+        enable = true;
+        driSupport = true;
+        driSupport32Bit = true;
+        extraPackages = with pkgs; [
+          intel-media-driver # LIBVA_DRIVER_NAME=iHD
+          vaapiIntel         # LIBVA_DRIVER_NAME=i965 (older but works better for Firefox/Chromium)
+          vaapiVdpau
+          libvdpau-va-gl
+        ];
+    };
+    hardware.nvidia = {
     
-    # Optionally, you may need to select the appropriate driver version for your specific GPU.
-    hardware.nvidia.package = config.boot.kernelPackages.nvidiaPackages.stable;
+        # Modesetting is needed most of the time
+        modesetting.enable = true;
     
-    # nvidia-drm.modeset=1; #is required for some wayland compositors, e.g. sway
-    hardware.nvidia.modesetting.enable = true;
+    	# Enable power management (do not disable this unless you have a reason to).
+    	# Likely to cause problems on laptops and with screen tearing if disabled.
+    	powerManagement.enable = true;
+    
+        # Use the open source version of the kernel module ("nouveau")
+    	# Note that this offers much lower performance and does not
+    	# support all the latest Nvidia GPU features.
+    	# You most likely don't want this.
+        # Only available on driver 515.43.04+
+        open = false;
+    
+        # Enable the Nvidia settings menu,
+    	# accessible via `nvidia-settings`.
+        nvidiaSettings = true;
+    
+        # Optionally, you may need to select the appropriate driver version for your specific GPU.
+        package = config.boot.kernelPackages.nvidiaPackages.stable;
+    };
 
     # hardware.nvidia.prime = {
-    #     sync.enable = true;
-    #     offload.enable = false;
-    #     
-    #     # Bus ID of the NVIDIA GPU. You can find it using lspci, either under 3D or VGA
-    #     nvidiaBusId = "PCI:01:00:0";
-    #     
-    #     # Bus ID of the Intel GPU. You can find it using lspci, either under 3D or VGA
-    #     intelBusId = "PCI:00:02:0";
-    # };
+	   #   offload = {
+	   #   	enable = true;
+	   #   	enableOffloadCmd = true;
+	   #   };
+        # reverseSync.enable = false;
+        # sync.enable = true;
 
-    # hardware.nvidia.powerManagement.enable = false;
+	     # Make sure to use the correct Bus ID values for your system!
+	#      intelBusId = "PCI:0:2:0";
+	#      nvidiaBusId = "PCI:1:0:0";
+	# };
 
-    # boot.kernelParams = [ "module_blacklist=i915" ];
+    nixpkgs.config.packageOverrides = pkgs: {
+        vaapiIntel = pkgs.vaapiIntel.override { enableHybridCodec = true; };
+      };
 
     virtualisation = {
         podman = {
@@ -112,11 +137,10 @@ in {
     
     # Enable the X11 windowing system.
     services.xserver.enable = true;
+    services.xserver.displayManager.startx.enable = true;
     
     # Enable the GNOME Desktop Environment.
-    services.xserver.displayManager.gdm.enable = false;
-    services.xserver.displayManager.lightdm.enable = false;
-    services.xserver.desktopManager.gnome.enable = false;
+    # services.xserver.desktopManager.gnome.enable = true;
     
     # Configure keymap in X11
     services.xserver = {
@@ -129,7 +153,9 @@ in {
     
     # Enable sound with pipewire.
     sound.enable = true;
-    hardware.pulseaudio.enable = false;
+    # hardware.pulseaudio.enable = true;
+    # hardware.pulseaudio.support32Bit = true;
+    hardware.pulseaudio.extraConfig = "enable-lfe-remix = no flat-volumes = no";
     security.rtkit.enable = true;
     services.pipewire = {
         enable = true;
@@ -152,7 +178,7 @@ in {
         shell = pkgs.zsh;
         isNormalUser = true;
         description = "uxdiin";
-        extraGroups = [ "networkmanager" "wheel" "libvirtd" ];
+        extraGroups = [ "networkmanager" "wheel" "libvirtd" "fuse" "trusted"  "audio"];
         packages = with pkgs; [
         ];
     };
@@ -160,18 +186,19 @@ in {
     # Allow unfree packages
     nixpkgs.config.allowUnfree = true;
 
+
     # List packages installed in system profile. To search, run:
     # $ nix search wget
     environment.systemPackages = with pkgs; [
+        picom-animation
       	wget
         wofi
         zsh
         git
         pulsemixer
-        stable.chromium
-        podman
-        podman-compose
-        podman-tui
+        stable.podman
+        stable.podman-compose
+        stable.podman-tui
         cni-plugins
         brightnessctl
         postgresql
@@ -179,6 +206,7 @@ in {
         slurp
         grim
         wl-clipboard
+        xclip
         postman
         lazygit
         dunst
@@ -216,12 +244,28 @@ in {
         openblas
         nixos-option
         outils
+        libva-utils
+        bspwm
+        sxhkd
+        arandr
+        scrot
+     #    xorg.xf86inputevdev
+	    # xorg.xf86videointel
+	    # xorg.xf86inputsynaptics
+	    # xorg.xorgserver
+        jdk8
+        javaPackages.openjfx11
+        jdk8
+        jre8
+        jre8
+        jdk11
+        xorg.xmodmap
     ];
       
     security.polkit.enable = true;
     virtualisation.libvirtd.enable = true;
     programs.nix-ld.enable = true;
-    
+    programs.ssh.startAgent = true;
       
     systemd = {
       user.services.polkit-kde-authentication-agent-1 = {

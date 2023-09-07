@@ -11,7 +11,7 @@ local sources = {
   b.diagnostics.phpstan,
   b.formatting.stylua,
   b.formatting.blade_formatter.with({
-        filetypes = { "blade", "blade.php", "php", "css"},
+        filetypes = { "blade", "blade.php", "php", "css", "html"},
     }),
 }
 
